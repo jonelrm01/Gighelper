@@ -1600,6 +1600,10 @@
   }
 
   /* ---------------- Odometer strip ---------------- */
+  function filterToActiveStream(list){
+    if(streams.length <= 1) return list;
+    return list.filter(function(e){ return (e.stream || DEFAULT_STREAMS[0]) === activeStream; });
+  }
   function renderOdometers(){
     var now = new Date();
     var todayStart = new Date(now); todayStart.setHours(0,0,0,0);
@@ -1609,9 +1613,9 @@
     var monthStart = startOfMonth(now);
     var monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth()+1, 1);
 
-    var today = summarize(entriesInRange(todayStart, todayEnd));
-    var week = summarize(entriesInRange(weekStart, weekEnd));
-    var month = summarize(entriesInRange(monthStart, monthEnd));
+    var today = summarize(filterToActiveStream(entriesInRange(todayStart, todayEnd)));
+    var week = summarize(filterToActiveStream(entriesInRange(weekStart, weekEnd)));
+    var month = summarize(filterToActiveStream(entriesInRange(monthStart, monthEnd)));
 
     document.getElementById('odoToday').textContent = fmtMoney(today.net);
     document.getElementById('odoWeek').textContent = fmtMoney(week.net);
@@ -1668,14 +1672,18 @@
 
   function renderEntriesList(){
     var container = document.getElementById('entriesList');
-    if(entries.length===0){
-      container.innerHTML = '<div class="empty-state">No entries yet. Tap the mic and log your first income, expense, or trip.</div>';
+    var source = filterToActiveStream(entries);
+    if(source.length===0){
+      var emptyMsg = (streams.length > 1)
+        ? ('No entries yet for "'+activeStream+'." Tap the mic and log your first income, expense, or trip.')
+        : 'No entries yet. Tap the mic and log your first income, expense, or trip.';
+      container.innerHTML = '<div class="empty-state">'+emptyMsg+'</div>';
       return;
     }
     var gran = logGranularity;
     var buckets = {};
     var bucketOrder = [];
-    entries.forEach(function(e){
+    source.forEach(function(e){
       var bs = bucketStartFor(new Date(e.ts), gran).getTime();
       if(!buckets[bs]){ buckets[bs]=[]; bucketOrder.push(bs); }
       buckets[bs].push(e);
@@ -2855,6 +2863,8 @@
           activeStream = matchedStream;
           saveActiveStream(activeStream);
           renderStreamBar();
+          renderOdometers();
+          renderEntriesList();
           return matchedStream;
         }
       }
@@ -3251,6 +3261,8 @@
         activeStream = s;
         saveActiveStream(activeStream);
         renderStreamBar();
+        renderOdometers();
+        renderEntriesList();
       });
       box.appendChild(chip);
     });
